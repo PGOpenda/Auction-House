@@ -1,10 +1,10 @@
 {
   "version": 1,
   "canisters": {
-    "icp_rust_boilerplate_backend": {
+    "auction_house": {
       "type": "rust",
-      "package": "icp_rust_boilerplate_backend",
-      "candid": "src/icp_rust_boilerplate_backend/icp_rust_boilerplate_backend.did"
+      "package": "auction_house",
+      "candid": "src/auction_house/auction_house.did"
     }
   },
   "output_env_file": ".env"
