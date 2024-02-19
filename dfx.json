@@ -1,10 +1,10 @@
 {
   "version": 1,
   "canisters": {
-    "auction_house": {
+    "health_management": {
       "type": "rust",
-      "package": "auction_house",
-      "candid": "src/auction_house/auction_house.did"
+      "package": "health_management",
+      "candid": "src/health_management/health_management.did"
     }
   },
   "output_env_file": ".env"

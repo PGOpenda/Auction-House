@@ -1,0 +1,21 @@
+type Auction = record {
+  id : nat64;
+  starting_bid : nat64;
+  winner : opt principal;
+  description : text;
+  item_name : text;
+  current_bid : nat64;
+  auction_end_time : nat64;
+};
+type Error = variant { NotFound : record { msg : text } };
+type NewAuction = record {
+  starting_bid : nat64;
+  auction_duration : nat64;
+  description : text;
+  item_name : text;
+};
+type Result = variant { Ok : Auction; Err : Error };
+service : {
+  create_auction : (NewAuction) -> (opt Auction);
+  get_auction : (nat64) -> (Result) query;
+}

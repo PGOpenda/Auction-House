@@ -1,5 +1,5 @@
 [package]
-name = "auction_house"
+name = "health_management"
 version = "0.1.0"
 edition = "2021"
 
