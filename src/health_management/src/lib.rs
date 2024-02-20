@@ -5,6 +5,8 @@ use candid::{Decode, Encode};
 use ic_cdk::api::time;
 use ic_stable_structures::memory_manager::{MemoryId, MemoryManager, VirtualMemory};
 use ic_stable_structures::{BoundedStorable, Cell, DefaultMemoryImpl, StableBTreeMap, Storable};
+use serde::de::value::Error;
+use std::fmt::format;
 use std::{borrow::Cow, cell::RefCell};
 
 //Use these types to store our canister's state and generate unique IDs
@@ -25,7 +27,7 @@ struct Patient {
     next_of_kin: String,
     kins_phone_number: String,
     registered_on: u64,
-    diagnostics: String,
+    // diagnostics: String,
 }
 
 impl Storable for Patient {
@@ -85,7 +87,7 @@ struct PatientPayLoad {
 
 impl Default for PatientPayLoad {
     fn default() -> Self {
-        PatientPayLoad{
+        PatientPayLoad {
             name: String::default(),
             date_of_birth: String::default(), //Format: DD-MM-YYYY
             gender: String::default(),
@@ -101,7 +103,7 @@ impl Default for PatientPayLoad {
 
 //Represents payload for adding a Doctor
 #[derive(candid::CandidType, Serialize, Deserialize)]
-struct DoctorPayLoad{
+struct DoctorPayLoad {
     name: String,
     email: String,
     phone_number: String,
@@ -110,7 +112,7 @@ struct DoctorPayLoad{
 
 impl Default for DoctorPayLoad {
     fn default() -> Self {
-        DoctorPayLoad{
+        DoctorPayLoad {
             name: String::default(),
             email: String::default(),
             phone_number: String::default(),
@@ -139,4 +141,59 @@ thread_local! {
         RefCell::new(StableBTreeMap::init(
             MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(1)))
     ));
+}
+
+//Represents errors that might occcur
+// #[derive(candid::CandidType, Deserialize, Serialize)]
+//     enum Error {
+//         NotFound { msg: String },
+//     }
+
+//Adds a new patient with the provided payload
+#[ic_cdk::update]
+fn add_patient(payload: PatientPayLoad) -> Result<Patient, String> {
+    //Validation Logic
+    if payload.name.is_empty()
+        || payload.address.is_empty()
+        || payload.date_of_birth.is_empty()
+        || payload.ethncity.is_empty()
+        || payload.gender.is_empty()
+        || payload.phone_number.is_empty()
+        || payload.next_of_kin.is_empty()
+        || payload.kins_phone_number.is_empty()
+    {
+        return Err("You must fill in the following fields: Name,Phone No.,Address,DOB,Ethnicity,Gender,Next of Kin, Kin's Phone No. ".to_string());
+    }
+
+    let id = ID_COUNTER.with(|counter| {
+        let current_value = *counter.borrow().get();
+        let _ = counter.borrow_mut().set(current_value + 1);
+        current_value + 1
+    });
+
+    let patient = Patient {
+        id,
+        name: payload.name,
+        date_of_birth: payload.date_of_birth,
+        gender: payload.gender,
+        ethncity: payload.ethncity,
+        address: payload.address,
+        phone_number: payload.phone_number,
+        email: payload.email,
+        next_of_kin: payload.next_of_kin,
+        kins_phone_number: payload.kins_phone_number,
+        registered_on: time(),
+    };
+
+    PATIENT_STORAGE.with(|storage| storage.borrow_mut().insert(id, patient.clone()));
+    Ok(patient)
+}
+
+//Retrieves inforamtion about a patient based on the ID provided
+#[ic_cdk::query]
+fn get_patient(id: u64) -> Result<Patient, String> {
+    PATIENT_STORAGE.with(|storage| match storage.borrow().get(&id) {
+        Some(patient) => Ok(patient.clone()),
+        None => Err(format!("Patient with ID {} can not be found", id)),
+    })
 }
