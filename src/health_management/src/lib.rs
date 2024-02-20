@@ -25,6 +25,7 @@ struct Patient {
     next_of_kin: String,
     kins_phone_number: String,
     registered_on: u64,
+    diagnostics: String,
 }
 
 impl Storable for Patient {
@@ -50,6 +51,7 @@ struct Doctor {
     email: String,
     phone_number: String,
     speciality: String,
+    current_patient: u64,
 }
 
 impl Storable for Doctor {
@@ -66,3 +68,22 @@ impl BoundedStorable for Doctor {
     const MAX_SIZE: u32 = 2048;
     const IS_FIXED_SIZE: bool = false;
 }
+
+//thread-local variables that will hold our canister's state
+thread_local! {
+    static MEMORY_MANAGER: RefCell<MemoryManager<DefaultMemoryImpl>> = RefCell::new(
+        MemoryManager::init(DefaultMemoryImpl::default())
+    );
+
+    static ID_COUNTER: RefCell<IdCell> = RefCell::new(
+        IdCell::init(MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(0))), 0)
+            .expect("Cannot create a counter")
+    );
+
+    static STORAGE: RefCell<StableBTreeMap<u64, Patient, Memory>> =
+        RefCell::new(StableBTreeMap::init(
+            MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(1)))
+    ));
+}
+
+
