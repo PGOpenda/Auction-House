@@ -7,6 +7,7 @@ use ic_stable_structures::memory_manager::{MemoryId, MemoryManager, VirtualMemor
 use ic_stable_structures::{BoundedStorable, Cell, DefaultMemoryImpl, StableBTreeMap, Storable};
 use serde::de::value::Error;
 use std::fmt::format;
+use std::os::unix::raw::off_t;
 use std::{borrow::Cow, cell::RefCell};
 
 //Use these types to store our canister's state and generate unique IDs
@@ -71,6 +72,31 @@ impl BoundedStorable for Doctor {
     const IS_FIXED_SIZE: bool = false;
 }
 
+/// Define our Office struct.
+#[derive(candid::CandidType, Clone, Serialize, Deserialize, Default)]
+struct Office {
+    id: u64,
+    name: String,
+    location: String,
+    current_doctor_id: u64,
+    equipment: Vec<String>, // List of classroom equipment/resources
+    // Additional classroom-specific fields
+}
+impl Storable for Office {
+    fn to_bytes(&self) -> Cow<[u8]> {
+        Cow::Owned(Encode!(self).unwrap())
+    }
+
+    fn from_bytes(bytes: Cow<[u8]>) -> Self {
+        Decode!(bytes.as_ref(), Self).unwrap()
+    }
+}
+
+impl BoundedStorable for Office {
+    const MAX_SIZE: u32 = 2048;
+    const IS_FIXED_SIZE: bool = false;
+}
+
 //Represents payload for adding a patient
 #[derive(candid::CandidType, Serialize, Deserialize)]
 struct PatientPayLoad {
@@ -121,6 +147,25 @@ impl Default for DoctorPayLoad {
     }
 }
 
+/// Represents payload for adding an office.
+#[derive(candid::CandidType, Serialize, Deserialize)]
+struct OfficePayload {
+    name: String,
+    location: String,
+    current_doctor_id: u64,
+    
+}
+
+impl Default for OfficePayload {
+    fn default() -> Self {
+        OfficePayload {
+            name: String::default(),
+            location: String::default(),
+            current_doctor_id: 0,
+        }
+    }
+}
+
 //thread-local variables that will hold our canister's state
 thread_local! {
     static MEMORY_MANAGER: RefCell<MemoryManager<DefaultMemoryImpl>> = RefCell::new(
@@ -141,13 +186,18 @@ thread_local! {
         RefCell::new(StableBTreeMap::init(
             MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(1)))
     ));
+
+    static OFFICE_STORAGE: RefCell<StableBTreeMap<u64, Office, Memory>> =
+        RefCell::new(StableBTreeMap::init(
+            MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(1)))
+    ));
 }
 
 //Represents errors that might occcur
 // #[derive(candid::CandidType, Deserialize, Serialize)]
-//     enum Error {
-//         NotFound { msg: String },
-//     }
+// enum Error {
+//     NotFound { msg: String },
+// }
 
 //Adds a new patient with the provided payload
 #[ic_cdk::update]
@@ -339,6 +389,81 @@ fn update_doctor(id: u64, payload: DoctorPayLoad) -> Result<Doctor, String> {
             Ok(updated_doctor)
         } else {
             Err(format!("Doctor with ID {} not found", id))
+        }
+    })
+}
+
+// Adds a new office
+#[ic_cdk::update]
+fn add_office(payload: OfficePayload) -> Result<Office, String> {
+    
+    // Validation logic 
+    if payload.name.is_empty() || payload.location.is_empty() {
+        return Err("Name & location are required fields".to_string());
+    }
+
+    let id = ID_COUNTER.with(|counter| {
+        let current_value = *counter.borrow().get();
+        let _ = counter.borrow_mut().set(current_value + 1);
+        current_value + 1
+    });
+
+    let office = Office {
+        id,
+        name: payload.name,
+        location: payload.location,
+        current_doctor_id: payload.current_doctor_id,
+        equipment: Vec::new(), // Initial empty equipment list
+    };
+
+    OFFICE_STORAGE.with(|storage| {
+        storage.borrow_mut().insert(id, office.clone());
+    });
+
+    Ok(office)
+}
+
+// Retrieves information about an office based on the ID.
+#[ic_cdk::query]
+fn get_office(id: u64) -> Result<Office, String> {
+    OFFICE_STORAGE.with(|storage| {
+        match storage.borrow().get(&id) {
+            Some(office) => Ok(office.clone()),
+            None => Err(format!("Office with ID {} not found", id)),
+        }
+    })
+}
+
+/// Updates information about an office based on the ID and payload.
+#[ic_cdk::update]
+fn update_office(id: u64, payload: OfficePayload) -> Result<Office, String> {
+    OFFICE_STORAGE.with(|storage| {
+        let mut storage = storage.borrow_mut();
+        if let Some(existing_office) = storage.get(&id) {
+            let mut updated_office = existing_office.clone();
+
+            updated_office.name = payload.name;
+            updated_office.location = payload.location;
+            updated_office.current_doctor_id = payload.current_doctor_id;
+
+            // Equipment is not updated here
+            storage.insert(id, updated_office.clone());
+
+            Ok(updated_office)
+        } else {
+            Err(format!("Office with ID {} not found", id))
+        }
+    })
+}
+
+/// Deletes an office based on the ID.
+#[ic_cdk::update]
+fn delete_classroom(id: u64) -> Result<(), String> {
+    OFFICE_STORAGE.with(|storage| {
+        if storage.borrow_mut().remove(&id).is_some() {
+            Ok(())
+        } else {
+            Err(format!("Office with ID {} not found", id))
         }
     })
 }
