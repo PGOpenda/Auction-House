@@ -189,7 +189,7 @@ fn add_patient(payload: PatientPayLoad) -> Result<Patient, String> {
     Ok(patient)
 }
 
-//Retrieves inforamtion about a patient based on the ID provided
+//Retrieves inforamtion about a patient based on the ID
 #[ic_cdk::query]
 fn get_patient(id: u64) -> Result<Patient, String> {
     PATIENT_STORAGE.with(|storage| match storage.borrow().get(&id) {
@@ -197,3 +197,126 @@ fn get_patient(id: u64) -> Result<Patient, String> {
         None => Err(format!("Patient with ID {} can not be found", id)),
     })
 }
+
+// Deletes a patient based on the ID.
+#[ic_cdk::update]
+fn delete_patient(id: u64) -> Result<(), String> {
+    PATIENT_STORAGE.with(|storage| {
+        if storage.borrow_mut().remove(&id).is_some() {
+            Ok(())
+        } else {
+            Err(format!("Patient with ID {} not found", id))
+        }
+    })
+}
+
+//Updates the information of the patient with the ID and payload
+#[ic_cdk::update]
+fn update_patient(id: u64, payload: PatientPayLoad) -> Result<Patient, String> {
+    PATIENT_STORAGE.with(|storage| {
+        let mut storage = storage.borrow_mut();
+        if let Some(existing_patient) = storage.get(&id) {
+
+            // Clone the existing patient to make a mutable copy
+            let mut updated_patient = existing_patient.clone();
+
+            // Update the fields
+            updated_patient.name = payload.name;
+            updated_patient.phone_number = payload.phone_number;
+            updated_patient.address = payload.address;
+            updated_patient.date_of_birth = payload.date_of_birth;
+            updated_patient.email = payload.email;
+            updated_patient.ethncity = payload.ethncity;
+            updated_patient.gender = payload.gender;
+            updated_patient.next_of_kin = payload.next_of_kin;
+            updated_patient.kins_phone_number = payload.kins_phone_number;
+            
+            // Re-insert the updated patient back into the storage
+            storage.insert(id, updated_patient.clone());
+
+            Ok(updated_patient)
+        } else {
+            Err(format!("Patient with ID {} not found", id))
+        }
+    })
+}
+
+//Adds a new doctor with the provide payload
+#[ic_cdk::update]
+fn add_doctor(payload: DoctorPayLoad) -> Result<Doctor, String> {
+    //Validation Logic
+    if payload.name.is_empty() 
+        || payload.email.is_empty() 
+        || payload.phone_number.is_empty() 
+        || payload.speciality.is_empty()
+    {
+        return Err("You must fill in the following fields: Name,Phone No.,Email and Speciality ".to_string());
+    }
+
+    let id = ID_COUNTER.with(|counter| {
+        let current_value = *counter.borrow().get();
+        let _ = counter.borrow_mut().set(current_value + 1);
+        current_value + 1
+    });
+
+    let doctor = Doctor {
+        id,
+        name: payload.name,
+        email: payload.email,
+        phone_number: payload.phone_number,
+        speciality: payload.speciality,
+        current_patient: 0,
+    };
+
+    DOCTOR_STORAGE.with(|storage| storage.borrow_mut().insert(id, doctor.clone()));
+    Ok(doctor)
+}
+
+//Retrieves inforamtion about a doctor based on the ID provided
+#[ic_cdk::query]
+fn get_doctor(id: u64) -> Result<Doctor, String> {
+    DOCTOR_STORAGE.with(|storage| match storage.borrow().get(&id) {
+        Some(doctor) => Ok(doctor.clone()),
+        None => Err(format!("Doctor with ID {} can not be found", id)),
+    })
+}
+
+// Deletes a doctor based on the ID.
+#[ic_cdk::update]
+fn delete_doctor(id: u64) -> Result<(), String> {
+    DOCTOR_STORAGE.with(|storage| {
+        if storage.borrow_mut().remove(&id).is_some() {
+            Ok(())
+        } else {
+            Err(format!("Doctor with ID {} not found", id))
+        }
+    })
+}
+
+//Updates the information of the doctor with the ID and payload
+#[ic_cdk::update]
+fn update_doctor(id: u64, payload: DoctorPayLoad) -> Result<Doctor, String> {
+    DOCTOR_STORAGE.with(|storage| {
+        let mut storage = storage.borrow_mut();
+        if let Some(existing_doctor) = storage.get(&id) {
+            // Clone the existing doctor to make a mutable copy
+            let mut updated_doctor = existing_doctor.clone();
+
+            // Update the fields
+            updated_doctor.name = payload.name;
+            updated_doctor.phone_number = payload.phone_number;
+            updated_doctor.email = payload.email;
+            updated_doctor.speciality = payload.speciality;
+
+            // Re-insert the updated doctor back into the storage
+            storage.insert(id, updated_doctor.clone());
+
+            Ok(updated_doctor)
+        } else {
+            Err(format!("Doctor with ID {} not found", id))
+        }
+    })
+}
+
+  // need this to generate candid
+  ic_cdk::export_candid!();

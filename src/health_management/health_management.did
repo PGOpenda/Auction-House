@@ -1,21 +1,29 @@
-type Auction = record {
+type Patient = record {
   id : nat64;
-  starting_bid : nat64;
-  winner : opt principal;
-  description : text;
-  item_name : text;
-  current_bid : nat64;
-  auction_end_time : nat64;
+  name : text;
+  email : text;
+  kins_phone_number : text;
+  ethncity : text;
+  address : text;
+  gender : text;
+  date_of_birth : text;
+  phone_number : text;
+  registered_on : nat64;
+  next_of_kin : text;
 };
-type Error = variant { NotFound : record { msg : text } };
-type NewAuction = record {
-  starting_bid : nat64;
-  auction_duration : nat64;
-  description : text;
-  item_name : text;
+type PatientPayLoad = record {
+  name : text;
+  email : text;
+  kins_phone_number : text;
+  ethncity : text;
+  address : text;
+  gender : text;
+  date_of_birth : text;
+  phone_number : text;
+  next_of_kin : text;
 };
-type Result = variant { Ok : Auction; Err : Error };
+type Result = variant { Ok : Patient; Err : text };
 service : {
-  create_auction : (NewAuction) -> (opt Auction);
-  get_auction : (nat64) -> (Result) query;
+  add_patient : (PatientPayLoad) -> (Result);
+  get_patient : (nat64) -> (Result) query;
 }
