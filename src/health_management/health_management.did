@@ -1,3 +1,17 @@
+type Doctor = record {
+  id : nat64;
+  current_patient : nat64;
+  name : text;
+  speciality : text;
+  email : text;
+  phone_number : text;
+};
+type DoctorPayLoad = record {
+  name : text;
+  speciality : text;
+  email : text;
+  phone_number : text;
+};
 type Patient = record {
   id : nat64;
   name : text;
@@ -22,8 +36,16 @@ type PatientPayLoad = record {
   phone_number : text;
   next_of_kin : text;
 };
-type Result = variant { Ok : Patient; Err : text };
+type Result = variant { Ok : Doctor; Err : text };
+type Result_1 = variant { Ok : Patient; Err : text };
+type Result_2 = variant { Ok; Err : text };
 service : {
-  add_patient : (PatientPayLoad) -> (Result);
-  get_patient : (nat64) -> (Result) query;
+  add_doctor : (DoctorPayLoad) -> (Result);
+  add_patient : (PatientPayLoad) -> (Result_1);
+  delete_doctor : (nat64) -> (Result_2);
+  delete_patient : (nat64) -> (Result_2);
+  get_doctor : (nat64) -> (Result) query;
+  get_patient : (nat64) -> (Result_1) query;
+  update_doctor : (nat64, DoctorPayLoad) -> (Result);
+  update_patient : (nat64, PatientPayLoad) -> (Result_1);
 }

@@ -213,6 +213,19 @@ fn delete_patient(id: u64) -> Result<(), String> {
 //Updates the information of the patient with the ID and payload
 #[ic_cdk::update]
 fn update_patient(id: u64, payload: PatientPayLoad) -> Result<Patient, String> {
+    //Validation Logic
+    if payload.name.is_empty()
+        || payload.address.is_empty()
+        || payload.date_of_birth.is_empty()
+        || payload.ethncity.is_empty()
+        || payload.gender.is_empty()
+        || payload.phone_number.is_empty()
+        || payload.next_of_kin.is_empty()
+        || payload.kins_phone_number.is_empty()
+    {
+        return Err("You must fill in the following fields: Name,Phone No.,Address,DOB,Ethnicity,Gender,Next of Kin, Kin's Phone No. ".to_string());
+    }
+    
     PATIENT_STORAGE.with(|storage| {
         let mut storage = storage.borrow_mut();
         if let Some(existing_patient) = storage.get(&id) {
@@ -284,6 +297,7 @@ fn get_doctor(id: u64) -> Result<Doctor, String> {
 // Deletes a doctor based on the ID.
 #[ic_cdk::update]
 fn delete_doctor(id: u64) -> Result<(), String> {
+
     DOCTOR_STORAGE.with(|storage| {
         if storage.borrow_mut().remove(&id).is_some() {
             Ok(())
@@ -296,9 +310,20 @@ fn delete_doctor(id: u64) -> Result<(), String> {
 //Updates the information of the doctor with the ID and payload
 #[ic_cdk::update]
 fn update_doctor(id: u64, payload: DoctorPayLoad) -> Result<Doctor, String> {
+    //Validation Logic
+    if payload.name.is_empty() 
+        || payload.email.is_empty() 
+        || payload.phone_number.is_empty() 
+        || payload.speciality.is_empty()
+    {
+        return Err("You must fill in the following fields: Name,Phone No.,Email and Speciality ".to_string());
+    }
+    
     DOCTOR_STORAGE.with(|storage| {
+
         let mut storage = storage.borrow_mut();
         if let Some(existing_doctor) = storage.get(&id) {
+
             // Clone the existing doctor to make a mutable copy
             let mut updated_doctor = existing_doctor.clone();
 
