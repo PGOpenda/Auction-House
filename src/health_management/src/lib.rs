@@ -17,6 +17,7 @@ struct Patient {
     id: u64,
     name: String,
     date_of_birth: String, //Format: DD-MM-YYYY
+    age: u32,
     gender: String,
     ethncity: String,
     address: String,
@@ -76,7 +77,7 @@ struct Room {
     name: String,
     location: String,
     current_doctor_id: u64,
-    equipment: Vec<String>, 
+    equipment: Vec<String>,
 }
 
 impl Storable for Room {
@@ -99,6 +100,7 @@ impl BoundedStorable for Room {
 struct PatientPayLoad {
     name: String,
     date_of_birth: String, //Format: DD-MM-YYYY
+    age: u32,
     gender: String,
     ethncity: String,
     address: String,
@@ -108,11 +110,13 @@ struct PatientPayLoad {
     kins_phone_number: String,
 }
 
+
 impl Default for PatientPayLoad {
     fn default() -> Self {
         PatientPayLoad {
             name: String::default(),
             date_of_birth: String::default(), //Format: DD-MM-YYYY
+            age: u32::default(),
             gender: String::default(),
             ethncity: String::default(),
             address: String::default(),
@@ -150,7 +154,6 @@ struct RoomPayload {
     name: String,
     location: String,
     current_doctor_id: u64,
-    
 }
 
 impl Default for RoomPayload {
@@ -194,7 +197,7 @@ thread_local! {
 #[derive(candid::CandidType, Deserialize, Serialize)]
 enum Error {
     NotFound { msg: String },
-    EmptyFields { msg: String}
+    EmptyFields { msg: String },
 }
 
 //Adds a new patient with the provided payload
@@ -209,9 +212,10 @@ fn add_patient(payload: PatientPayLoad) -> Result<Patient, Error> {
         || payload.phone_number.is_empty()
         || payload.next_of_kin.is_empty()
         || payload.kins_phone_number.is_empty()
+        || payload.age == 0 
     {
-        return Err(Error::EmptyFields { 
-            msg: "Please fill in all the required fields to be able to submit".to_string() 
+        return Err(Error::EmptyFields {
+            msg: "Please fill in all the required fields to be able to submit".to_string(),
         });
     }
 
@@ -225,6 +229,7 @@ fn add_patient(payload: PatientPayLoad) -> Result<Patient, Error> {
         id,
         name: payload.name,
         date_of_birth: payload.date_of_birth,
+        age: payload.age,
         gender: payload.gender,
         ethncity: payload.ethncity,
         address: payload.address,
@@ -244,7 +249,9 @@ fn add_patient(payload: PatientPayLoad) -> Result<Patient, Error> {
 fn get_patient(id: u64) -> Result<Patient, Error> {
     PATIENT_STORAGE.with(|storage| match storage.borrow().get(&id) {
         Some(patient) => Ok(patient.clone()),
-        None => Err(Error::NotFound { msg: format!("Patient with ID {} can not be found", id) }),
+        None => Err(Error::NotFound {
+            msg: format!("Patient with ID {} can not be found", id),
+        }),
     })
 }
 
@@ -255,7 +262,9 @@ fn delete_patient(id: u64) -> Result<(), Error> {
         if storage.borrow_mut().remove(&id).is_some() {
             Ok(())
         } else {
-            Err(Error::NotFound { msg: format!("Patient with ID {} not found", id) })
+            Err(Error::NotFound {
+                msg: format!("Patient with ID {} not found", id),
+            })
         }
     })
 }
@@ -273,13 +282,14 @@ fn update_patient(id: u64, payload: PatientPayLoad) -> Result<Patient, Error> {
         || payload.next_of_kin.is_empty()
         || payload.kins_phone_number.is_empty()
     {
-        return Err(Error::EmptyFields { msg: "You must fill all of the required fields".to_string() });
+        return Err(Error::EmptyFields {
+            msg: "You must fill all of the required fields".to_string(),
+        });
     }
-    
+
     PATIENT_STORAGE.with(|storage| {
         let mut storage = storage.borrow_mut();
         if let Some(existing_patient) = storage.get(&id) {
-
             // Clone the existing patient to make a mutable copy
             let mut updated_patient = existing_patient.clone();
 
@@ -293,13 +303,15 @@ fn update_patient(id: u64, payload: PatientPayLoad) -> Result<Patient, Error> {
             updated_patient.gender = payload.gender;
             updated_patient.next_of_kin = payload.next_of_kin;
             updated_patient.kins_phone_number = payload.kins_phone_number;
-            
+
             // Re-insert the updated patient back into the storage
             storage.insert(id, updated_patient.clone());
 
             Ok(updated_patient)
         } else {
-            Err(Error::NotFound { msg: format!("Patient with ID {} not found", id) })
+            Err(Error::NotFound {
+                msg: format!("Patient with ID {} not found", id),
+            })
         }
     })
 }
@@ -308,12 +320,14 @@ fn update_patient(id: u64, payload: PatientPayLoad) -> Result<Patient, Error> {
 #[ic_cdk::update]
 fn add_doctor(payload: DoctorPayLoad) -> Result<Doctor, Error> {
     //Validation Logic
-    if payload.name.is_empty() 
-        || payload.email.is_empty() 
-        || payload.phone_number.is_empty() 
+    if payload.name.is_empty()
+        || payload.email.is_empty()
+        || payload.phone_number.is_empty()
         || payload.speciality.is_empty()
     {
-        return Err(Error::EmptyFields { msg: "You must fill in all the required fields".to_string() });
+        return Err(Error::EmptyFields {
+            msg: "You must fill in all the required fields".to_string(),
+        });
     }
 
     let id = ID_COUNTER.with(|counter| {
@@ -340,19 +354,22 @@ fn add_doctor(payload: DoctorPayLoad) -> Result<Doctor, Error> {
 fn get_doctor(id: u64) -> Result<Doctor, Error> {
     DOCTOR_STORAGE.with(|storage| match storage.borrow().get(&id) {
         Some(doctor) => Ok(doctor.clone()),
-        None => Err(Error::NotFound { msg: format!("Doctor with ID {} can not be found", id) }),
+        None => Err(Error::NotFound {
+            msg: format!("Doctor with ID {} can not be found", id),
+        }),
     })
 }
 
 // Deletes a doctor based on the ID.
 #[ic_cdk::update]
 fn delete_doctor(id: u64) -> Result<(), Error> {
-
     DOCTOR_STORAGE.with(|storage| {
         if storage.borrow_mut().remove(&id).is_some() {
             Ok(())
         } else {
-            Err(Error::NotFound { msg: format!("Doctor with ID {} not found", id) })
+            Err(Error::NotFound {
+                msg: format!("Doctor with ID {} not found", id),
+            })
         }
     })
 }
@@ -361,19 +378,19 @@ fn delete_doctor(id: u64) -> Result<(), Error> {
 #[ic_cdk::update]
 fn update_doctor(id: u64, payload: DoctorPayLoad) -> Result<Doctor, Error> {
     //Validation Logic
-    if payload.name.is_empty() 
-        || payload.email.is_empty() 
-        || payload.phone_number.is_empty() 
+    if payload.name.is_empty()
+        || payload.email.is_empty()
+        || payload.phone_number.is_empty()
         || payload.speciality.is_empty()
     {
-        return Err(Error::EmptyFields { msg: "You must fill in all the required fields".to_string() });
+        return Err(Error::EmptyFields {
+            msg: "You must fill in all the required fields".to_string(),
+        });
     }
-    
-    DOCTOR_STORAGE.with(|storage| {
 
+    DOCTOR_STORAGE.with(|storage| {
         let mut storage = storage.borrow_mut();
         if let Some(existing_doctor) = storage.get(&id) {
-
             // Clone the existing doctor to make a mutable copy
             let mut updated_doctor = existing_doctor.clone();
 
@@ -388,7 +405,9 @@ fn update_doctor(id: u64, payload: DoctorPayLoad) -> Result<Doctor, Error> {
 
             Ok(updated_doctor)
         } else {
-            Err(Error::NotFound { msg: format!("Doctor with ID {} not found", id) })
+            Err(Error::NotFound {
+                msg: format!("Doctor with ID {} not found", id),
+            })
         }
     })
 }
@@ -396,10 +415,11 @@ fn update_doctor(id: u64, payload: DoctorPayLoad) -> Result<Doctor, Error> {
 // Adds a new Room
 #[ic_cdk::update]
 fn add_room(payload: RoomPayload) -> Result<Room, Error> {
-    
-    // Validation logic 
+    // Validation logic
     if payload.name.is_empty() || payload.location.is_empty() {
-        return Err(Error::EmptyFields { msg: "Please fill in all the required fields".to_string() });
+        return Err(Error::EmptyFields {
+            msg: "Please fill in all the required fields".to_string(),
+        });
     }
 
     let id = ID_COUNTER.with(|counter| {
@@ -426,22 +446,24 @@ fn add_room(payload: RoomPayload) -> Result<Room, Error> {
 // Retrieves information about an Room based on the ID.
 #[ic_cdk::query]
 fn get_room(id: u64) -> Result<Room, Error> {
-    ROOM_STORAGE.with(|storage| {
-        match storage.borrow().get(&id) {
-            Some(room) => Ok(room.clone()),
-            None => Err(Error::NotFound { msg: format!("Room with ID {} not found", id) }),
-        }
+    ROOM_STORAGE.with(|storage| match storage.borrow().get(&id) {
+        Some(room) => Ok(room.clone()),
+        None => Err(Error::NotFound {
+            msg: format!("Room with ID {} not found", id),
+        }),
     })
 }
 
 /// Updates information about an Room based on the ID and payload.
 #[ic_cdk::update]
 fn update_room(id: u64, payload: RoomPayload) -> Result<Room, Error> {
-    // Validation logic 
+    // Validation logic
     if payload.name.is_empty() || payload.location.is_empty() {
-        return Err(Error::EmptyFields { msg: "Please fill in all the required fields".to_string() });
+        return Err(Error::EmptyFields {
+            msg: "Please fill in all the required fields".to_string(),
+        });
     }
-    
+
     ROOM_STORAGE.with(|storage| {
         let mut storage = storage.borrow_mut();
         if let Some(existing_room) = storage.get(&id) {
@@ -456,7 +478,9 @@ fn update_room(id: u64, payload: RoomPayload) -> Result<Room, Error> {
 
             Ok(updated_room)
         } else {
-            Err(Error::NotFound { msg: format!("Room with ID {} not found", id) })
+            Err(Error::NotFound {
+                msg: format!("Room with ID {} not found", id),
+            })
         }
     })
 }
@@ -468,10 +492,12 @@ fn delete_classroom(id: u64) -> Result<(), Error> {
         if storage.borrow_mut().remove(&id).is_some() {
             Ok(())
         } else {
-            Err(Error::NotFound { msg: format!("Room with ID {} not found", id) })
+            Err(Error::NotFound {
+                msg: format!("Room with ID {} not found", id),
+            })
         }
     })
 }
 
-  // need this to generate candid
-  ic_cdk::export_candid!();
+// need this to generate candid
+ic_cdk::export_candid!();
