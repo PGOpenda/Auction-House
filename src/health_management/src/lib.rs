@@ -5,9 +5,6 @@ use candid::{Decode, Encode};
 use ic_cdk::api::time;
 use ic_stable_structures::memory_manager::{MemoryId, MemoryManager, VirtualMemory};
 use ic_stable_structures::{BoundedStorable, Cell, DefaultMemoryImpl, StableBTreeMap, Storable};
-use serde::de::value::Error;
-use std::fmt::format;
-use std::os::unix::raw::off_t;
 use std::{borrow::Cow, cell::RefCell};
 
 //Use these types to store our canister's state and generate unique IDs
@@ -193,15 +190,16 @@ thread_local! {
     ));
 }
 
-//Represents errors that might occcur
-// #[derive(candid::CandidType, Deserialize, Serialize)]
-// enum Error {
-//     NotFound { msg: String },
-// }
+// Represents errors that might occcur
+#[derive(candid::CandidType, Deserialize, Serialize)]
+enum Error {
+    NotFound { msg: String },
+    EmptyFields { msg: String}
+}
 
 //Adds a new patient with the provided payload
 #[ic_cdk::update]
-fn add_patient(payload: PatientPayLoad) -> Result<Patient, String> {
+fn add_patient(payload: PatientPayLoad) -> Result<Patient, Error> {
     //Validation Logic
     if payload.name.is_empty()
         || payload.address.is_empty()
@@ -212,7 +210,9 @@ fn add_patient(payload: PatientPayLoad) -> Result<Patient, String> {
         || payload.next_of_kin.is_empty()
         || payload.kins_phone_number.is_empty()
     {
-        return Err("You must fill in the following fields: Name,Phone No.,Address,DOB,Ethnicity,Gender,Next of Kin, Kin's Phone No. ".to_string());
+        return Err(Error::EmptyFields { 
+            msg: "Please fill in all the required fields to be able to submit".to_string() 
+        });
     }
 
     let id = ID_COUNTER.with(|counter| {
@@ -241,28 +241,28 @@ fn add_patient(payload: PatientPayLoad) -> Result<Patient, String> {
 
 //Retrieves inforamtion about a patient based on the ID
 #[ic_cdk::query]
-fn get_patient(id: u64) -> Result<Patient, String> {
+fn get_patient(id: u64) -> Result<Patient, Error> {
     PATIENT_STORAGE.with(|storage| match storage.borrow().get(&id) {
         Some(patient) => Ok(patient.clone()),
-        None => Err(format!("Patient with ID {} can not be found", id)),
+        None => Err(Error::NotFound { msg: format!("Patient with ID {} can not be found", id) }),
     })
 }
 
 // Deletes a patient based on the ID.
 #[ic_cdk::update]
-fn delete_patient(id: u64) -> Result<(), String> {
+fn delete_patient(id: u64) -> Result<(), Error> {
     PATIENT_STORAGE.with(|storage| {
         if storage.borrow_mut().remove(&id).is_some() {
             Ok(())
         } else {
-            Err(format!("Patient with ID {} not found", id))
+            Err(Error::NotFound { msg: format!("Patient with ID {} not found", id) })
         }
     })
 }
 
 //Updates the information of the patient with the ID and payload
 #[ic_cdk::update]
-fn update_patient(id: u64, payload: PatientPayLoad) -> Result<Patient, String> {
+fn update_patient(id: u64, payload: PatientPayLoad) -> Result<Patient, Error> {
     //Validation Logic
     if payload.name.is_empty()
         || payload.address.is_empty()
@@ -273,7 +273,7 @@ fn update_patient(id: u64, payload: PatientPayLoad) -> Result<Patient, String> {
         || payload.next_of_kin.is_empty()
         || payload.kins_phone_number.is_empty()
     {
-        return Err("You must fill in the following fields: Name,Phone No.,Address,DOB,Ethnicity,Gender,Next of Kin, Kin's Phone No. ".to_string());
+        return Err(Error::EmptyFields { msg: "You must fill all of the required fields".to_string() });
     }
     
     PATIENT_STORAGE.with(|storage| {
@@ -299,21 +299,21 @@ fn update_patient(id: u64, payload: PatientPayLoad) -> Result<Patient, String> {
 
             Ok(updated_patient)
         } else {
-            Err(format!("Patient with ID {} not found", id))
+            Err(Error::NotFound { msg: format!("Patient with ID {} not found", id) })
         }
     })
 }
 
 //Adds a new doctor with the provide payload
 #[ic_cdk::update]
-fn add_doctor(payload: DoctorPayLoad) -> Result<Doctor, String> {
+fn add_doctor(payload: DoctorPayLoad) -> Result<Doctor, Error> {
     //Validation Logic
     if payload.name.is_empty() 
         || payload.email.is_empty() 
         || payload.phone_number.is_empty() 
         || payload.speciality.is_empty()
     {
-        return Err("You must fill in the following fields: Name,Phone No.,Email and Speciality ".to_string());
+        return Err(Error::EmptyFields { msg: "You must fill in all the required fields".to_string() });
     }
 
     let id = ID_COUNTER.with(|counter| {
@@ -337,36 +337,36 @@ fn add_doctor(payload: DoctorPayLoad) -> Result<Doctor, String> {
 
 //Retrieves inforamtion about a doctor based on the ID provided
 #[ic_cdk::query]
-fn get_doctor(id: u64) -> Result<Doctor, String> {
+fn get_doctor(id: u64) -> Result<Doctor, Error> {
     DOCTOR_STORAGE.with(|storage| match storage.borrow().get(&id) {
         Some(doctor) => Ok(doctor.clone()),
-        None => Err(format!("Doctor with ID {} can not be found", id)),
+        None => Err(Error::NotFound { msg: format!("Doctor with ID {} can not be found", id) }),
     })
 }
 
 // Deletes a doctor based on the ID.
 #[ic_cdk::update]
-fn delete_doctor(id: u64) -> Result<(), String> {
+fn delete_doctor(id: u64) -> Result<(), Error> {
 
     DOCTOR_STORAGE.with(|storage| {
         if storage.borrow_mut().remove(&id).is_some() {
             Ok(())
         } else {
-            Err(format!("Doctor with ID {} not found", id))
+            Err(Error::NotFound { msg: format!("Doctor with ID {} not found", id) })
         }
     })
 }
 
 //Updates the information of the doctor with the ID and payload
 #[ic_cdk::update]
-fn update_doctor(id: u64, payload: DoctorPayLoad) -> Result<Doctor, String> {
+fn update_doctor(id: u64, payload: DoctorPayLoad) -> Result<Doctor, Error> {
     //Validation Logic
     if payload.name.is_empty() 
         || payload.email.is_empty() 
         || payload.phone_number.is_empty() 
         || payload.speciality.is_empty()
     {
-        return Err("You must fill in the following fields: Name,Phone No.,Email and Speciality ".to_string());
+        return Err(Error::EmptyFields { msg: "You must fill in all the required fields".to_string() });
     }
     
     DOCTOR_STORAGE.with(|storage| {
@@ -388,18 +388,18 @@ fn update_doctor(id: u64, payload: DoctorPayLoad) -> Result<Doctor, String> {
 
             Ok(updated_doctor)
         } else {
-            Err(format!("Doctor with ID {} not found", id))
+            Err(Error::NotFound { msg: format!("Doctor with ID {} not found", id) })
         }
     })
 }
 
 // Adds a new office
 #[ic_cdk::update]
-fn add_office(payload: OfficePayload) -> Result<Office, String> {
+fn add_office(payload: OfficePayload) -> Result<Office, Error> {
     
     // Validation logic 
     if payload.name.is_empty() || payload.location.is_empty() {
-        return Err("Name & location are required fields".to_string());
+        return Err(Error::EmptyFields { msg: "Please fill in all the required fields".to_string() });
     }
 
     let id = ID_COUNTER.with(|counter| {
@@ -425,18 +425,23 @@ fn add_office(payload: OfficePayload) -> Result<Office, String> {
 
 // Retrieves information about an office based on the ID.
 #[ic_cdk::query]
-fn get_office(id: u64) -> Result<Office, String> {
+fn get_office(id: u64) -> Result<Office, Error> {
     OFFICE_STORAGE.with(|storage| {
         match storage.borrow().get(&id) {
             Some(office) => Ok(office.clone()),
-            None => Err(format!("Office with ID {} not found", id)),
+            None => Err(Error::NotFound { msg: format!("Office with ID {} not found", id) }),
         }
     })
 }
 
 /// Updates information about an office based on the ID and payload.
 #[ic_cdk::update]
-fn update_office(id: u64, payload: OfficePayload) -> Result<Office, String> {
+fn update_office(id: u64, payload: OfficePayload) -> Result<Office, Error> {
+    // Validation logic 
+    if payload.name.is_empty() || payload.location.is_empty() {
+        return Err(Error::EmptyFields { msg: "Please fill in all the required fields".to_string() });
+    }
+    
     OFFICE_STORAGE.with(|storage| {
         let mut storage = storage.borrow_mut();
         if let Some(existing_office) = storage.get(&id) {
@@ -451,19 +456,19 @@ fn update_office(id: u64, payload: OfficePayload) -> Result<Office, String> {
 
             Ok(updated_office)
         } else {
-            Err(format!("Office with ID {} not found", id))
+            Err(Error::NotFound { msg: format!("Office with ID {} not found", id) })
         }
     })
 }
 
 /// Deletes an office based on the ID.
 #[ic_cdk::update]
-fn delete_classroom(id: u64) -> Result<(), String> {
+fn delete_classroom(id: u64) -> Result<(), Error> {
     OFFICE_STORAGE.with(|storage| {
         if storage.borrow_mut().remove(&id).is_some() {
             Ok(())
         } else {
-            Err(format!("Office with ID {} not found", id))
+            Err(Error::NotFound { msg: format!("Office with ID {} not found", id) })
         }
     })
 }
