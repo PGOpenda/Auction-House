@@ -69,17 +69,17 @@ impl BoundedStorable for Doctor {
     const IS_FIXED_SIZE: bool = false;
 }
 
-/// Define our Office struct.
+/// Define our Room struct.
 #[derive(candid::CandidType, Clone, Serialize, Deserialize, Default)]
-struct Office {
+struct Room {
     id: u64,
     name: String,
     location: String,
     current_doctor_id: u64,
-    equipment: Vec<String>, // List of classroom equipment/resources
-    // Additional classroom-specific fields
+    equipment: Vec<String>, 
 }
-impl Storable for Office {
+
+impl Storable for Room {
     fn to_bytes(&self) -> Cow<[u8]> {
         Cow::Owned(Encode!(self).unwrap())
     }
@@ -89,7 +89,7 @@ impl Storable for Office {
     }
 }
 
-impl BoundedStorable for Office {
+impl BoundedStorable for Room {
     const MAX_SIZE: u32 = 2048;
     const IS_FIXED_SIZE: bool = false;
 }
@@ -144,18 +144,18 @@ impl Default for DoctorPayLoad {
     }
 }
 
-/// Represents payload for adding an office.
+/// Represents payload for adding an Room.
 #[derive(candid::CandidType, Serialize, Deserialize)]
-struct OfficePayload {
+struct RoomPayload {
     name: String,
     location: String,
     current_doctor_id: u64,
     
 }
 
-impl Default for OfficePayload {
+impl Default for RoomPayload {
     fn default() -> Self {
-        OfficePayload {
+        RoomPayload {
             name: String::default(),
             location: String::default(),
             current_doctor_id: 0,
@@ -184,7 +184,7 @@ thread_local! {
             MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(1)))
     ));
 
-    static OFFICE_STORAGE: RefCell<StableBTreeMap<u64, Office, Memory>> =
+    static ROOM_STORAGE: RefCell<StableBTreeMap<u64, Room, Memory>> =
         RefCell::new(StableBTreeMap::init(
             MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(1)))
     ));
@@ -393,9 +393,9 @@ fn update_doctor(id: u64, payload: DoctorPayLoad) -> Result<Doctor, Error> {
     })
 }
 
-// Adds a new office
+// Adds a new Room
 #[ic_cdk::update]
-fn add_office(payload: OfficePayload) -> Result<Office, Error> {
+fn add_room(payload: RoomPayload) -> Result<Room, Error> {
     
     // Validation logic 
     if payload.name.is_empty() || payload.location.is_empty() {
@@ -408,7 +408,7 @@ fn add_office(payload: OfficePayload) -> Result<Office, Error> {
         current_value + 1
     });
 
-    let office = Office {
+    let room = Room {
         id,
         name: payload.name,
         location: payload.location,
@@ -416,59 +416,59 @@ fn add_office(payload: OfficePayload) -> Result<Office, Error> {
         equipment: Vec::new(), // Initial empty equipment list
     };
 
-    OFFICE_STORAGE.with(|storage| {
-        storage.borrow_mut().insert(id, office.clone());
+    ROOM_STORAGE.with(|storage| {
+        storage.borrow_mut().insert(id, room.clone());
     });
 
-    Ok(office)
+    Ok(room)
 }
 
-// Retrieves information about an office based on the ID.
+// Retrieves information about an Room based on the ID.
 #[ic_cdk::query]
-fn get_office(id: u64) -> Result<Office, Error> {
-    OFFICE_STORAGE.with(|storage| {
+fn get_room(id: u64) -> Result<Room, Error> {
+    ROOM_STORAGE.with(|storage| {
         match storage.borrow().get(&id) {
-            Some(office) => Ok(office.clone()),
-            None => Err(Error::NotFound { msg: format!("Office with ID {} not found", id) }),
+            Some(room) => Ok(room.clone()),
+            None => Err(Error::NotFound { msg: format!("Room with ID {} not found", id) }),
         }
     })
 }
 
-/// Updates information about an office based on the ID and payload.
+/// Updates information about an Room based on the ID and payload.
 #[ic_cdk::update]
-fn update_office(id: u64, payload: OfficePayload) -> Result<Office, Error> {
+fn update_room(id: u64, payload: RoomPayload) -> Result<Room, Error> {
     // Validation logic 
     if payload.name.is_empty() || payload.location.is_empty() {
         return Err(Error::EmptyFields { msg: "Please fill in all the required fields".to_string() });
     }
     
-    OFFICE_STORAGE.with(|storage| {
+    ROOM_STORAGE.with(|storage| {
         let mut storage = storage.borrow_mut();
-        if let Some(existing_office) = storage.get(&id) {
-            let mut updated_office = existing_office.clone();
+        if let Some(existing_room) = storage.get(&id) {
+            let mut updated_room = existing_room.clone();
 
-            updated_office.name = payload.name;
-            updated_office.location = payload.location;
-            updated_office.current_doctor_id = payload.current_doctor_id;
+            updated_room.name = payload.name;
+            updated_room.location = payload.location;
+            updated_room.current_doctor_id = payload.current_doctor_id;
 
             // Equipment is not updated here
-            storage.insert(id, updated_office.clone());
+            storage.insert(id, updated_room.clone());
 
-            Ok(updated_office)
+            Ok(updated_room)
         } else {
-            Err(Error::NotFound { msg: format!("Office with ID {} not found", id) })
+            Err(Error::NotFound { msg: format!("Room with ID {} not found", id) })
         }
     })
 }
 
-/// Deletes an office based on the ID.
+/// Deletes an Room based on the ID.
 #[ic_cdk::update]
 fn delete_classroom(id: u64) -> Result<(), Error> {
-    OFFICE_STORAGE.with(|storage| {
+    ROOM_STORAGE.with(|storage| {
         if storage.borrow_mut().remove(&id).is_some() {
             Ok(())
         } else {
-            Err(Error::NotFound { msg: format!("Office with ID {} not found", id) })
+            Err(Error::NotFound { msg: format!("Room with ID {} not found", id) })
         }
     })
 }
