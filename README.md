@@ -17,7 +17,7 @@ This repository contains the code for a simple health management system implemen
 Clone the repository
 
 ```bash
-git clone https://github.com/PGOpenda/health-canister.git
+git clone https://github.com/PGOpenda/Health-Canister.git
 ```
 
 Change to the directory
