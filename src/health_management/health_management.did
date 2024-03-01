@@ -1,3 +1,16 @@
+type Diagnosis = record {
+  id : nat64;
+  patient_id : nat64;
+  medication : text;
+  treatment : text;
+  doctor_id : nat64;
+};
+type DiagnosisPayload = record {
+  patient_id : nat64;
+  medication : text;
+  treatment : text;
+  doctor_id : nat64;
+};
 type Doctor = record {
   id : nat64;
   current_patient : nat64;
@@ -13,11 +26,14 @@ type DoctorPayLoad = record {
   phone_number : text;
 };
 type Error = variant {
+  CanNotAssign : record { msg : text };
   EmptyFields : record { msg : text };
   NotFound : record { msg : text };
+  AlreadyAssigned : record { msg : text };
 };
 type Patient = record {
   id : nat64;
+  age : nat32;
   name : text;
   email : text;
   kins_phone_number : text;
@@ -30,6 +46,7 @@ type Patient = record {
   next_of_kin : text;
 };
 type PatientPayLoad = record {
+  age : nat32;
   name : text;
   email : text;
   kins_phone_number : text;
@@ -40,10 +57,11 @@ type PatientPayLoad = record {
   phone_number : text;
   next_of_kin : text;
 };
-type Result = variant { Ok : Doctor; Err : Error };
-type Result_1 = variant { Ok : Patient; Err : Error };
-type Result_2 = variant { Ok : Room; Err : Error };
-type Result_3 = variant { Ok; Err : Error };
+type Result = variant { Ok : Diagnosis; Err : Error };
+type Result_1 = variant { Ok : Doctor; Err : Error };
+type Result_2 = variant { Ok : Patient; Err : Error };
+type Result_3 = variant { Ok : Room; Err : Error };
+type Result_4 = variant { Ok; Err : Error };
 type Room = record {
   id : nat64;
   current_doctor_id : nat64;
@@ -51,22 +69,23 @@ type Room = record {
   name : text;
   location : text;
 };
-type RoomPayload = record {
-  current_doctor_id : nat64;
-  name : text;
-  location : text;
-};
+type RoomPayload = record { name : text; location : text };
 service : {
-  add_doctor : (DoctorPayLoad) -> (Result);
-  add_patient : (PatientPayLoad) -> (Result_1);
-  add_room : (RoomPayload) -> (Result_2);
-  delete_classroom : (nat64) -> (Result_3);
-  delete_doctor : (nat64) -> (Result_3);
-  delete_patient : (nat64) -> (Result_3);
-  get_doctor : (nat64) -> (Result) query;
-  get_patient : (nat64) -> (Result_1) query;
-  get_room : (nat64) -> (Result_2) query;
-  update_doctor : (nat64, DoctorPayLoad) -> (Result);
-  update_patient : (nat64, PatientPayLoad) -> (Result_1);
-  update_room : (nat64, RoomPayload) -> (Result_2);
+  add_diagnosis : (DiagnosisPayload) -> (Result);
+  add_doctor : (DoctorPayLoad) -> (Result_1);
+  add_patient : (PatientPayLoad) -> (Result_2);
+  add_room : (RoomPayload) -> (Result_3);
+  assign_doctor_a_room : (nat64, nat64) -> (Result_4);
+  assign_patient_a_doctor : (nat64, nat64) -> (Result_4);
+  clear_current_patient : (nat64) -> (Result_1);
+  delete_classroom : (nat64) -> (Result_4);
+  delete_doctor : (nat64) -> (Result_4);
+  delete_patient : (nat64) -> (Result_4);
+  get_doctor : (nat64) -> (Result_1) query;
+  get_patient : (nat64) -> (Result_2) query;
+  get_room : (nat64) -> (Result_3) query;
+  update_doctor : (nat64, DoctorPayLoad) -> (Result_1);
+  update_patient : (nat64, PatientPayLoad) -> (Result_2);
+  update_room : (nat64, RoomPayload) -> (Result_3);
+  update_room_equipment : (nat64, vec text) -> (Result_4);
 }

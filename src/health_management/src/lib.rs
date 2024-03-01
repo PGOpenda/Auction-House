@@ -11,7 +11,7 @@ use std::{borrow::Cow, cell::RefCell};
 type Memory = VirtualMemory<DefaultMemoryImpl>;
 type IdCell = Cell<u64, Memory>;
 
-//Define our Patient Struct
+//Define our Patient Struct   njjilesssstd
 #[derive(candid::CandidType, Clone, Serialize, Deserialize, Default)]
 struct Patient {
     id: u64,
@@ -26,7 +26,6 @@ struct Patient {
     next_of_kin: String,
     kins_phone_number: String,
     registered_on: u64,
-    // diagnostics: String,
 }
 
 impl Storable for Patient {
@@ -95,6 +94,31 @@ impl BoundedStorable for Room {
     const IS_FIXED_SIZE: bool = false;
 }
 
+//Define our diagnosis struct
+#[derive(candid::CandidType, Clone, Serialize, Deserialize, Default)]
+struct Diagnosis {
+    id: u64,
+    doctor_id: u64,
+    patient_id: u64,
+    treatment: String,
+    medication: String,
+}
+
+impl Storable for Diagnosis {
+    fn to_bytes(&self) -> Cow<[u8]> {
+        Cow::Owned(Encode!(self).unwrap())
+    }
+
+    fn from_bytes(bytes: Cow<[u8]>) -> Self {
+        Decode!(bytes.as_ref(), Self).unwrap()
+    }
+}
+
+impl BoundedStorable for Diagnosis {
+    const MAX_SIZE: u32 = 2048;
+    const IS_FIXED_SIZE: bool = false;
+}
+
 //Represents payload for adding a patient
 #[derive(candid::CandidType, Serialize, Deserialize)]
 struct PatientPayLoad {
@@ -109,7 +133,6 @@ struct PatientPayLoad {
     next_of_kin: String,
     kins_phone_number: String,
 }
-
 
 impl Default for PatientPayLoad {
     fn default() -> Self {
@@ -153,7 +176,6 @@ impl Default for DoctorPayLoad {
 struct RoomPayload {
     name: String,
     location: String,
-    current_doctor_id: u64,
 }
 
 impl Default for RoomPayload {
@@ -161,7 +183,26 @@ impl Default for RoomPayload {
         RoomPayload {
             name: String::default(),
             location: String::default(),
-            current_doctor_id: 0,
+        }
+    }
+}
+
+//Represents payload for adding a diagnosis
+#[derive(candid::CandidType, Serialize, Deserialize)]
+struct DiagnosisPayload {
+    doctor_id: u64,
+    patient_id: u64,
+    treatment: String,
+    medication: String
+}
+
+impl Default for DiagnosisPayload {
+    fn default() -> Self {
+        DiagnosisPayload {
+            doctor_id: u64::default(),
+            patient_id: u64::default(),
+            treatment: String::default(),
+            medication: String::default(),
         }
     }
 }
@@ -191,6 +232,11 @@ thread_local! {
         RefCell::new(StableBTreeMap::init(
             MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(1)))
     ));
+
+    static DIAGNOSIS_STORAGE: RefCell<StableBTreeMap<u64, Diagnosis, Memory>> =
+        RefCell::new(StableBTreeMap::init(
+            MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(1)))
+    ));
 }
 
 // Represents errors that might occcur
@@ -198,6 +244,8 @@ thread_local! {
 enum Error {
     NotFound { msg: String },
     EmptyFields { msg: String },
+    AlreadyAssigned { msg: String },
+    CanNotAssign { msg: String },
 }
 
 //Adds a new patient with the provided payload
@@ -212,7 +260,7 @@ fn add_patient(payload: PatientPayLoad) -> Result<Patient, Error> {
         || payload.phone_number.is_empty()
         || payload.next_of_kin.is_empty()
         || payload.kins_phone_number.is_empty()
-        || payload.age == 0 
+        || payload.age == 0
     {
         return Err(Error::EmptyFields {
             msg: "Please fill in all the required fields to be able to submit".to_string(),
@@ -254,6 +302,7 @@ fn get_patient(id: u64) -> Result<Patient, Error> {
         }),
     })
 }
+
 
 // Deletes a patient based on the ID.
 #[ic_cdk::update]
@@ -360,6 +409,7 @@ fn get_doctor(id: u64) -> Result<Doctor, Error> {
     })
 }
 
+
 // Deletes a doctor based on the ID.
 #[ic_cdk::update]
 fn delete_doctor(id: u64) -> Result<(), Error> {
@@ -432,7 +482,7 @@ fn add_room(payload: RoomPayload) -> Result<Room, Error> {
         id,
         name: payload.name,
         location: payload.location,
-        current_doctor_id: payload.current_doctor_id,
+        current_doctor_id: 0,
         equipment: Vec::new(), // Initial empty equipment list
     };
 
@@ -443,7 +493,7 @@ fn add_room(payload: RoomPayload) -> Result<Room, Error> {
     Ok(room)
 }
 
-// Retrieves information about an Room based on the ID.
+// Retrieves information about a Room based on the ID.
 #[ic_cdk::query]
 fn get_room(id: u64) -> Result<Room, Error> {
     ROOM_STORAGE.with(|storage| match storage.borrow().get(&id) {
@@ -454,7 +504,8 @@ fn get_room(id: u64) -> Result<Room, Error> {
     })
 }
 
-/// Updates information about an Room based on the ID and payload.
+
+/// Updates information about a Room based on the ID and payload.
 #[ic_cdk::update]
 fn update_room(id: u64, payload: RoomPayload) -> Result<Room, Error> {
     // Validation logic
@@ -471,7 +522,6 @@ fn update_room(id: u64, payload: RoomPayload) -> Result<Room, Error> {
 
             updated_room.name = payload.name;
             updated_room.location = payload.location;
-            updated_room.current_doctor_id = payload.current_doctor_id;
 
             // Equipment is not updated here
             storage.insert(id, updated_room.clone());
@@ -485,9 +535,9 @@ fn update_room(id: u64, payload: RoomPayload) -> Result<Room, Error> {
     })
 }
 
-/// Deletes an Room based on the ID.
+/// Deletes a Room based on the ID.
 #[ic_cdk::update]
-fn delete_classroom(id: u64) -> Result<(), Error> {
+fn delete_room(id: u64) -> Result<(), Error> {
     ROOM_STORAGE.with(|storage| {
         if storage.borrow_mut().remove(&id).is_some() {
             Ok(())
@@ -497,6 +547,149 @@ fn delete_classroom(id: u64) -> Result<(), Error> {
             })
         }
     })
+}
+
+//Clears the current patient once a diagnosis is given
+#[ic_cdk::update]
+fn clear_current_patient(id: u64) -> Result<Doctor, Error> {
+
+    DOCTOR_STORAGE.with(|storage| {
+        let mut storage = storage.borrow_mut();
+        if let Some(existing_doctor) = storage.get(&id) {
+            let mut updated_doctor = existing_doctor.clone();
+
+            updated_doctor.current_patient = 0; 
+
+            storage.insert(id, updated_doctor.clone());
+
+            Ok(updated_doctor)
+        } else {
+            Err(Error::NotFound {
+                msg: format!("Doctor with ID {} not found", id),
+            })
+        }
+    })
+}
+
+//Adds a new diagnosis 
+#[ic_cdk::update]
+fn add_diagnosis(payload: DiagnosisPayload) -> Result<Diagnosis, Error> {
+    // Validation logic
+    if payload.doctor_id == 0 
+        || payload.patient_id == 0 
+        || payload.medication.is_empty()
+        || payload.treatment.is_empty() {
+        return Err(Error::EmptyFields {
+            msg: "Please fill in all the required fields".to_string(),
+        });
+    }
+
+    //Check if the doctor and patient exist
+    let _patient = get_patient(payload.patient_id)?;
+    let _doctor = get_doctor(payload.doctor_id)?; 
+
+    let id = ID_COUNTER.with(|counter| {
+        let current_value = *counter.borrow().get();
+        let _ = counter.borrow_mut().set(current_value + 1);
+        current_value + 1
+    });
+
+    let diagnosis = Diagnosis {
+        id,
+        doctor_id: payload.doctor_id,
+        patient_id:  payload.patient_id,
+        treatment: payload.treatment,
+        medication: payload.medication
+    };
+
+    DIAGNOSIS_STORAGE.with(|storage| {
+        storage.borrow_mut().insert(id, diagnosis.clone());
+    });
+
+    let _clear_patient = clear_current_patient(payload.doctor_id)?;
+
+    Ok(diagnosis)
+}
+
+//Assign a patient to a doctor
+#[ic_cdk::update]
+fn assign_patient_a_doctor(patient_id: u64, doctor_id: u64) -> Result<(), Error> {
+    // Check if the patient and doctor exist
+    let _patient = get_patient(patient_id)?;
+    let doctor = get_doctor(doctor_id)?;
+
+    //Check if the doctor currently has a patient
+    if doctor.current_patient != 0 {
+        return Err(Error::CanNotAssign {
+            msg: "The doctor currently has a patient".to_string(),
+        });
+    }
+
+    // Check if the patient is already assigned to the doctor
+    if doctor.current_patient == patient_id {
+        return Err(Error::AlreadyAssigned {
+            msg: "The patient is already assigned to the doctor".to_string(),
+        });
+    }
+
+    // Assign the patient
+    DOCTOR_STORAGE.with(|storage| {
+        let mut storage = storage.borrow_mut();
+        let mut updated_doctor = doctor.clone();
+        updated_doctor.current_patient = patient_id;
+        storage.insert(doctor_id, updated_doctor);
+    });
+
+    Ok(())
+}
+
+//Assign a doctor to a room
+#[ic_cdk::update]
+fn assign_doctor_a_room(doctor_id: u64, room_id: u64) -> Result<(), Error> {
+    // Check if the doctor and room exist
+    let _doctor = get_doctor(doctor_id)?;
+    let room = get_room(room_id)?;
+
+    //Check if the room currently has a doctor
+    if room.current_doctor_id != 0 {
+        return Err(Error::CanNotAssign {
+            msg: "The room currently has a doctor".to_string(),
+        });
+    }
+
+    // Check if the doctor is already assigned to the room
+    if room.current_doctor_id == doctor_id {
+        return Err(Error::AlreadyAssigned {
+            msg: "The doctor is already assigned to the room".to_string(),
+        });
+    }
+
+    // Assign the doctor
+    ROOM_STORAGE.with(|storage| {
+        let mut storage = storage.borrow_mut();
+        let mut updated_room = room.clone();
+        updated_room.current_doctor_id = doctor_id;
+        storage.insert(room_id, updated_room);
+    });
+
+    Ok(())
+}
+
+/// Updates the equipment in a room.
+#[ic_cdk::update]
+fn update_room_equipment(room_id: u64, equipment: Vec<String>) -> Result<(), Error> {
+    // Check if the room exists
+    let room = get_room(room_id)?;
+
+    // Update the equipment in the classroom
+    ROOM_STORAGE.with(|storage| {
+        let mut storage = storage.borrow_mut();
+        let mut updated_room = room.clone();
+        updated_room.equipment = equipment;
+        storage.insert(room_id, updated_room);
+    });
+
+    Ok(())
 }
 
 // need this to generate candid
