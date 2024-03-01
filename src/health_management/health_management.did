@@ -78,9 +78,10 @@ service : {
   assign_doctor_a_room : (nat64, nat64) -> (Result_4);
   assign_patient_a_doctor : (nat64, nat64) -> (Result_4);
   clear_current_patient : (nat64) -> (Result_1);
-  delete_classroom : (nat64) -> (Result_4);
   delete_doctor : (nat64) -> (Result_4);
   delete_patient : (nat64) -> (Result_4);
+  delete_room : (nat64) -> (Result_4);
+  get_all_patients : () -> (vec Patient) query;
   get_doctor : (nat64) -> (Result_1) query;
   get_patient : (nat64) -> (Result_2) query;
   get_room : (nat64) -> (Result_3) query;

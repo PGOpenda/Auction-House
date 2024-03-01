@@ -303,7 +303,6 @@ fn get_patient(id: u64) -> Result<Patient, Error> {
     })
 }
 
-
 // Deletes a patient based on the ID.
 #[ic_cdk::update]
 fn delete_patient(id: u64) -> Result<(), Error> {
