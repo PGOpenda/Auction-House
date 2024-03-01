@@ -303,6 +303,18 @@ fn get_patient(id: u64) -> Result<Patient, Error> {
     })
 }
 
+//Get all patients
+// #[ic_cdk::query]
+// fn get_all_patients() -> Vec<Patient> {
+//     let mut patients: Vec<Patient> = Vec::new();
+//     PATIENT_STORAGE.with(|storage| {
+//         for (_, patient) in storage.borrow().iter() {
+//             patients.push(patient.clone());
+//         }
+//     });
+//     patients
+// }
+
 // Deletes a patient based on the ID.
 #[ic_cdk::update]
 fn delete_patient(id: u64) -> Result<(), Error> {
@@ -408,6 +420,17 @@ fn get_doctor(id: u64) -> Result<Doctor, Error> {
     })
 }
 
+// Get all doctors
+// #[ic_cdk::query]
+// fn get_all_doctors() -> Vec<Doctor> {
+//     let mut doctors: Vec<Doctor> = Vec::new();
+//     DOCTOR_STORAGE.with(|storage| {
+//         for (_, doctor) in storage.borrow().iter() {
+//             doctors.push(doctor.clone());
+//         }
+//     });
+//     doctors
+// }
 
 // Deletes a doctor based on the ID.
 #[ic_cdk::update]
@@ -503,6 +526,17 @@ fn get_room(id: u64) -> Result<Room, Error> {
     })
 }
 
+// Get all rooms
+// #[ic_cdk::query]
+// fn get_all_rooms() -> Vec<Room> {
+//     let mut rooms: Vec<Room> = Vec::new();
+//     ROOM_STORAGE.with(|storage| {
+//         for (_, room) in storage.borrow().iter() {
+//             rooms.push(room.clone());
+//         }
+//     });
+//     rooms
+// }
 
 /// Updates information about a Room based on the ID and payload.
 #[ic_cdk::update]
