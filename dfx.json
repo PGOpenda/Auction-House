@@ -1,10 +1,10 @@
 {
   "version": 1,
   "canisters": {
-    "icp_rust_boilerplate_backend": {
+    "health_management": {
       "type": "rust",
-      "package": "icp_rust_boilerplate_backend",
-      "candid": "src/icp_rust_boilerplate_backend/icp_rust_boilerplate_backend.did"
+      "package": "health_management",
+      "candid": "src/health_management/health_management.did"
     }
   },
   "output_env_file": ".env"
